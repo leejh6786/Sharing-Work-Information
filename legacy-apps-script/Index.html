@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>해남제일중 업무 공유</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5d667a;
+      --line: #d9dee8;
+      --panel: #ffffff;
+      --soft: #f4f7fb;
+      --brand: #275f8f;
+      --brand-dark: #174667;
+      --accent: #2f7d57;
+      --danger: #b74444;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, "Noto Sans KR", sans-serif;
+      color: var(--ink);
+      background: #eef2f7;
+    }
+
+    .app-top {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(23, 32, 51, 0.12);
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 22px;
+      background: var(--brand-dark);
+      color: #fff;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    #todayLabel {
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .share-button {
+      border-color: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 10px 18px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--line);
+    }
+
+    main {
+      display: grid;
+      gap: 16px;
+      padding: 18px;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      min-height: 36px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button.primary {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: #fff;
+    }
+
+    button.danger {
+      background: #fff;
+      border-color: #e2b8b8;
+      color: var(--danger);
+    }
+
+    button.active {
+      background: var(--brand-dark);
+      color: #fff;
+      border-color: var(--brand-dark);
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .jump-target {
+      scroll-margin-top: 235px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .summary {
+      grid-template-columns: repeat(5, minmax(140px, 1fr));
+      position: sticky;
+      top: 105px;
+      z-index: 80;
+      padding: 10px 0;
+      background: #eef2f7;
+    }
+
+    .summary .panel {
+      padding: 14px;
+    }
+
+    .summary-card {
+      cursor: pointer;
+      text-align: left;
+      transition: transform 0.12s ease, border-color 0.12s ease;
+    }
+
+    .summary-card:hover {
+      border-color: var(--brand);
+      transform: translateY(-1px);
+    }
+
+    .summary strong {
+      display: block;
+      font-size: 24px;
+      margin-top: 6px;
+    }
+
+    .form-grid {
+      grid-template-columns: repeat(4, minmax(160px, 1fr));
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font: inherit;
+      background: #fff;
+    }
+
+    textarea {
+      min-height: 74px;
+      resize: vertical;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      table-layout: fixed;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 8px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 13px;
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+    }
+
+    th {
+      background: var(--soft);
+      font-weight: 700;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 17px;
+    }
+
+    .muted { color: var(--muted); }
+    .hidden { display: none; }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .span-2 { grid-column: span 2; }
+    .span-4 { grid-column: span 4; }
+    .status { min-height: 20px; color: var(--accent); font-weight: 700; }
+
+    @media (max-width: 900px) {
+      .summary, .form-grid { grid-template-columns: 1fr; }
+      .span-2, .span-4 { grid-column: auto; }
+      header { align-items: flex-start; flex-direction: column; }
+      .header-actions { justify-content: flex-start; }
+      .summary { top: 150px; }
+      .jump-target { scroll-margin-top: 310px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-top">
+    <header>
+      <h1>해남제일중 업무 공유</h1>
+      <div class="header-actions">
+        <div id="todayLabel"></div>
+        <button type="button" class="share-button" id="shareButton">공유</button>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <button class="active" data-view="dashboard">대시보드</button>
+      <button data-view="entry">업무 등재</button>
+      <button data-view="list">업무목록</button>
+      <button data-view="notice">안내사항</button>
+    </nav>
+  </div>
+
+  <main>
+    <section id="dashboard" class="view grid">
+      <div class="grid summary" id="summary"></div>
+      <div class="panel jump-target" id="sectionToday">
+        <div class="section-title"><h2>오늘 일정</h2></div>
+        <div id="todayTasks"></div>
+      </div>
+      <div class="panel jump-target" id="sectionWeek">
+        <div class="section-title"><h2>이번주 일정</h2></div>
+        <div id="weekTasks"></div>
+      </div>
+      <div class="panel jump-target" id="sectionNextWeek">
+        <div class="section-title"><h2>다음주 일정</h2></div>
+        <div id="nextWeekTasks"></div>
+      </div>
+      <div class="panel jump-target" id="sectionMonth">
+        <div class="section-title"><h2>이번달 일정</h2></div>
+        <div id="monthTasks"></div>
+      </div>
+      <div class="panel jump-target" id="sectionNextMonth">
+        <div class="section-title"><h2>다음달 일정</h2></div>
+        <div id="nextMonthTasks"></div>
+      </div>
+    </section>
+
+    <section id="entry" class="view panel hidden">
+      <div class="section-title"><h2>업무 등재</h2><div class="status" id="entryStatus"></div></div>
+      <form id="taskForm" class="grid form-grid">
+        <label>날짜<input name="date" placeholder="예: 7/16, 7. 16, 2026. 7. 16."></label>
+        <label>시간<input name="time" placeholder="예: 15:30, 5~6교시"></label>
+        <label>업무유형<select name="type" id="typeSelect"></select></label>
+        <label>담당부서<input name="department"></label>
+        <label class="span-2">업무명<input name="title" required></label>
+        <label>대상<input name="target"></label>
+        <label>장소<input name="place"></label>
+        <label class="span-4">비고<textarea name="memo"></textarea></label>
+        <div class="toolbar span-4">
+          <button type="submit" class="primary">저장</button>
+          <button type="reset">초기화</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="list" class="view panel hidden">
+      <div class="section-title">
+        <h2>업무목록</h2>
+        <div class="toolbar">
+          <input id="searchInput" placeholder="검색">
+          <button id="sortButton">오늘 기준 정렬</button>
+        </div>
+      </div>
+      <div id="allTasks"></div>
+    </section>
+
+    <section id="notice" class="view panel hidden">
+      <div class="section-title"><h2>안내사항</h2><div class="status" id="noticeStatus"></div></div>
+      <form id="noticeForm" class="grid form-grid">
+        <label class="span-2">안내 내용<input name="content" required></label>
+        <label>안내 부서<input name="department"></label>
+        <label>대상<input name="target"></label>
+        <label class="span-4">비고<textarea name="memo"></textarea></label>
+        <div class="toolbar span-4">
+          <button type="submit" class="primary">등록</button>
+          <button type="reset">초기화</button>
+        </div>
+      </form>
+      <div style="height:16px"></div>
+      <div id="noticeList"></div>
+    </section>
+  </main>
+
+  <script>
+    let appData = null;
+    let pendingPayload = null;
+
+    const $ = (selector) => document.querySelector(selector);
+    const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+    function callServer(fn, ...args) {
+      return new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)[fn](...args);
+      });
+    }
+
+    function setStatus(id, text) {
+      const el = $(id);
+      if (el) el.textContent = text || '';
+    }
+
+    function taskTable(tasks, emptyText, allowDelete) {
+      if (!tasks || !tasks.length) return `<p class="muted">${emptyText}</p>`;
+
+      const rows = tasks.map(task => `
+        <tr>
+          <td>${escapeHtml(task.dateDisplay || task.date)}</td>
+          <td>${escapeHtml(task.day)}</td>
+          <td>${escapeHtml(task.time)}</td>
+          <td>${escapeHtml(task.type)}</td>
+          <td>${escapeHtml(task.title)}</td>
+          <td>${escapeHtml(task.target)}</td>
+          <td>${escapeHtml(task.place)}</td>
+          <td>${escapeHtml(task.department)}</td>
+          ${allowDelete ? `<td><button class="danger" data-delete="${task.rowNumber}">삭제</button></td>` : ''}
+        </tr>
+      `).join('');
+
+      return `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:105px">날짜</th>
+                <th style="width:52px">요일</th>
+                <th style="width:95px">시간</th>
+                <th style="width:80px">유형</th>
+                <th style="width:260px">업무명</th>
+                <th style="width:120px">대상</th>
+                <th style="width:130px">장소</th>
+                <th style="width:110px">부서</th>
+                ${allowDelete ? '<th style="width:72px">삭제</th>' : ''}
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function noticeTable(notices) {
+      if (!notices || !notices.length) return '<p class="muted">등록된 안내사항이 없습니다.</p>';
+
+      const rows = notices.slice().reverse().map(notice => `
+        <tr>
+          <td>${escapeHtml(notice.dateDisplay)}</td>
+          <td>${escapeHtml(notice.day)}</td>
+          <td>${escapeHtml(notice.content)}</td>
+          <td>${escapeHtml(notice.department)}</td>
+          <td>${escapeHtml(notice.target)}</td>
+          <td>${escapeHtml(notice.memo)}</td>
+        </tr>
+      `).join('');
+
+      return `
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>날짜</th><th>요일</th><th>안내 내용</th><th>부서</th><th>대상</th><th>비고</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function render(data) {
+      appData = data;
+      $('#todayLabel').textContent = `기준일 ${data.today}`;
+
+      $('#summary').innerHTML = [
+        ['오늘', data.dashboard.today.length, 'sectionToday'],
+        ['이번주', data.dashboard.thisWeek.length, 'sectionWeek'],
+        ['다음주', data.dashboard.nextWeek.length, 'sectionNextWeek'],
+        ['이번달', data.dashboard.thisMonth.length, 'sectionMonth'],
+        ['다음달', data.dashboard.nextMonth.length, 'sectionNextMonth']
+      ].map(([label, count, target]) => `
+        <button type="button" class="panel summary-card" data-jump="${target}">
+          <span class="muted">${label}</span>
+          <strong>${count}</strong>
+        </button>
+      `).join('');
+
+      $('#todayTasks').innerHTML = taskTable(data.dashboard.today, '오늘 일정이 없습니다.', false);
+      $('#weekTasks').innerHTML = taskTable(data.dashboard.thisWeek, '이번주 일정이 없습니다.', false);
+      $('#nextWeekTasks').innerHTML = taskTable(data.dashboard.nextWeek, '다음주 일정이 없습니다.', false);
+      $('#monthTasks').innerHTML = taskTable(data.dashboard.thisMonth, '이번달 일정이 없습니다.', false);
+      $('#nextMonthTasks').innerHTML = taskTable(data.dashboard.nextMonth, '다음달 일정이 없습니다.', false);
+      $('#noticeList').innerHTML = noticeTable(data.notices);
+
+      $('#typeSelect').innerHTML = '<option value=""></option>' + data.options.types.map(type => `<option>${type}</option>`).join('');
+      bindSummaryJumpEvents();
+      renderTaskList();
+    }
+
+    function bindSummaryJumpEvents() {
+      $$('.summary-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const target = $('#' + card.dataset.jump);
+          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+    }
+
+    function renderTaskList() {
+      if (!appData) return;
+      const query = ($('#searchInput').value || '').trim().toLowerCase();
+      const tasks = appData.tasks.filter(task => !query || Object.values(task).join(' ').toLowerCase().includes(query));
+      $('#allTasks').innerHTML = taskTable(tasks, '업무가 없습니다.', true);
+    }
+
+    function formPayload(form) {
+      return Object.fromEntries(new FormData(form).entries());
+    }
+
+    async function copyShareUrl() {
+      const url = window.location.href;
+
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(url);
+        } else {
+          const input = document.createElement('input');
+          input.value = url;
+          input.style.position = 'fixed';
+          input.style.left = '-9999px';
+          document.body.appendChild(input);
+          input.select();
+          document.execCommand('copy');
+          input.remove();
+        }
+
+        const button = $('#shareButton');
+        const previous = button.textContent;
+        button.textContent = '복사됨';
+        setTimeout(() => { button.textContent = previous; }, 1600);
+      } catch (error) {
+        prompt('아래 주소를 복사하세요.', url);
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    async function init() {
+      $$('.tabs button').forEach(button => {
+        button.addEventListener('click', () => {
+          $$('.tabs button').forEach(item => item.classList.remove('active'));
+          $$('.view').forEach(view => view.classList.add('hidden'));
+          button.classList.add('active');
+          $('#' + button.dataset.view).classList.remove('hidden');
+        });
+      });
+
+      $('#shareButton').addEventListener('click', copyShareUrl);
+
+      $('#taskForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        setStatus('#entryStatus', '저장 중');
+        const payload = formPayload(event.target);
+        const result = await callServer('addTask', payload);
+
+        if (result.needsConfirm) {
+          pendingPayload = payload;
+          if (!confirm(result.message + '\n\n그래도 저장하시겠습니까?')) {
+            setStatus('#entryStatus', '저장 취소');
+            return;
+          }
+          const confirmed = await callServer('addTaskConfirmed', pendingPayload);
+          event.target.reset();
+          setStatus('#entryStatus', confirmed.message);
+          render(confirmed.data);
+          return;
+        }
+
+        event.target.reset();
+        setStatus('#entryStatus', result.message);
+        render(result.data);
+      });
+
+      $('#noticeForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        setStatus('#noticeStatus', '등록 중');
+        const result = await callServer('addNotice', formPayload(event.target));
+        event.target.reset();
+        setStatus('#noticeStatus', result.message);
+        render(result.data);
+      });
+
+      $('#searchInput').addEventListener('input', renderTaskList);
+
+      $('#sortButton').addEventListener('click', async () => {
+        const result = await callServer('sortTasksManual');
+        render(result.data);
+      });
+
+      document.body.addEventListener('click', async (event) => {
+        const rowNumber = event.target && event.target.dataset && event.target.dataset.delete;
+        if (!rowNumber) return;
+        if (!confirm('해당 업무를 삭제 목록으로 이동하시겠습니까?')) return;
+        const result = await callServer('deleteTask', rowNumber);
+        render(result.data);
+      });
+
+      render(await callServer('getAppData'));
+    }
+
+    init().catch(error => {
+      document.body.innerHTML = `<main><section class="panel"><h2>오류</h2><p>${escapeHtml(error.message || error)}</p></section></main>`;
+    });
+  </script>
+</body>
+</html>
