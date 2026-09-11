@@ -35,6 +35,17 @@ function addDays(date: Date, days: number) {
   return result;
 }
 
+function compareTasksFromToday(a: Task, b: Task, today: string) {
+  const group = (date: string) => !date ? 2 : date >= today ? 0 : 1;
+  const groupDifference = group(a.date) - group(b.date);
+  if (groupDifference) return groupDifference;
+
+  const dateDifference = group(a.date) === 1
+    ? b.date.localeCompare(a.date)
+    : a.date.localeCompare(b.date);
+  return dateDifference || a.time.localeCompare(b.time) || a.row - b.row;
+}
+
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...options, headers: { "Content-Type": "application/json", ...(options?.headers ?? {}) }, cache: "no-store" });
   const data = await response.json();
@@ -86,7 +97,8 @@ export default function Home() {
     setLoading(true);
     try {
       const [taskData, noticeData] = await Promise.all([api<{ tasks: Task[] }>("/api/tasks"), api<{ notices: Notice[] }>("/api/notices")]);
-      setTasks(taskData.tasks.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)));
+      const today = todayKst();
+      setTasks([...taskData.tasks].sort((a, b) => compareTasksFromToday(a, b, today)));
       setNotices(noticeData.notices.sort((a, b) => b.date.localeCompare(a.date)));
       setMessage("");
     } catch (error) {
