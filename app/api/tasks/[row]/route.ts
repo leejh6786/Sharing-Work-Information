@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { deleteTask, updateTask } from "@/lib/google-sheets";
-import { taskSchema } from "@/lib/validation";
+import { taskDeleteSchema, taskUpdateSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
 
@@ -15,8 +15,8 @@ function rowNumber(value: string) {
 export async function PATCH(request: Request, context: Context) {
   try {
     const { row } = await context.params;
-    const input = taskSchema.parse(await request.json());
-    await updateTask(rowNumber(row), input);
+    const input = taskUpdateSchema.parse(await request.json());
+    await updateTask(rowNumber(row), input.task, input.expected);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error(error);
@@ -27,8 +27,8 @@ export async function PATCH(request: Request, context: Context) {
 export async function DELETE(request: Request, context: Context) {
   try {
     const { row } = await context.params;
-    const body = await request.json().catch(() => ({}));
-    await deleteTask(rowNumber(row), typeof body.reason === "string" ? body.reason : undefined);
+    const body = taskDeleteSchema.parse(await request.json());
+    await deleteTask(rowNumber(row), body.expected, body.reason);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error(error);

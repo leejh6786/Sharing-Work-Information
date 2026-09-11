@@ -14,6 +14,22 @@ export const taskSchema = z.object({
   completedDate: z.union([date, z.literal("")]).default(""),
 });
 
+export const taskIdentitySchema = z.object({
+  date: z.union([date, z.literal("")]),
+  name: z.string().min(1).max(200),
+  department: z.string().max(100).default(""),
+});
+
+export const taskUpdateSchema = z.object({
+  task: taskSchema,
+  expected: taskIdentitySchema,
+});
+
+export const taskDeleteSchema = z.object({
+  expected: taskIdentitySchema,
+  reason: z.string().max(500).default("웹앱에서 삭제"),
+});
+
 export const noticeSchema = z.object({
   date,
   content: z.string().min(1, "안내 내용을 입력해 주세요.").max(500),

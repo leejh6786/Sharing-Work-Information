@@ -23,4 +23,5 @@ export type Notice = {
 };
 
 export type TaskInput = Omit<Task, "row" | "day">;
+export type TaskIdentity = Pick<Task, "date" | "name" | "department">;
 export type NoticeInput = Omit<Notice, "row" | "day">;

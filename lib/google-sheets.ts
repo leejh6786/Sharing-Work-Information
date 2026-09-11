@@ -2,12 +2,11 @@ import "server-only";
 
 import { google } from "googleapis";
 import { dayOfWeek, koreanDate, normalizeDate } from "@/lib/date";
-import type { Notice, NoticeInput, Task, TaskInput } from "@/lib/types";
+import type { Notice, NoticeInput, Task, TaskIdentity, TaskInput } from "@/lib/types";
 
 const TASK_SHEET = "업무목록";
 const DELETED_SHEET = "삭제 목록";
 const DASHBOARD_SHEET = "대시보드";
-const TASK_SHEET_ID = 881124393;
 
 function env(name: string): string {
   const value = process.env[name];
@@ -34,6 +33,39 @@ function text(value: unknown): string {
   return String(value ?? "").trim();
 }
 
+function isDeleted(value: unknown): boolean {
+  return text(value).toUpperCase() === "TRUE" || text(value) === "1";
+}
+
+function assertCurrentTask(row: unknown[], expected: TaskIdentity) {
+  if (!row.length || (!text(row[0]) && !text(row[4]))) {
+    throw new Error("업무를 찾지 못했습니다. 새로고침 후 다시 시도해 주세요.");
+  }
+  if (isDeleted(row[10])) {
+    throw new Error("이미 삭제된 업무입니다. 새로고침해 주세요.");
+  }
+
+  const matches = normalizeDate(row[0]) === expected.date
+    && text(row[4]) === text(expected.name)
+    && text(row[7]) === text(expected.department);
+  if (!matches) {
+    throw new Error("선택한 행의 업무가 변경되었습니다. 새로고침 후 다시 시도해 주세요.");
+  }
+}
+
+async function taskSheetIds(sheets: ReturnType<typeof getClient>): Promise<{ task: number; deleted: number }> {
+  const response = await sheets.spreadsheets.get({
+    spreadsheetId: sheetId(),
+    fields: "sheets.properties(sheetId,title)",
+  });
+  const findId = (title: string) => response.data.sheets?.find((sheet) => sheet.properties?.title === title)?.properties?.sheetId;
+  const task = findId(TASK_SHEET);
+  const deleted = findId(DELETED_SHEET);
+  if (typeof task !== "number") throw new Error(`'${TASK_SHEET}' 시트를 찾지 못했습니다.`);
+  if (typeof deleted !== "number") throw new Error(`'${DELETED_SHEET}' 시트를 찾지 못했습니다.`);
+  return { task, deleted };
+}
+
 export async function listTasks(): Promise<Task[]> {
   const sheets = getClient();
   const response = await sheets.spreadsheets.values.get({
@@ -42,8 +74,9 @@ export async function listTasks(): Promise<Task[]> {
     valueRenderOption: "FORMATTED_VALUE",
   });
 
-  return (response.data.values ?? [])
-    .map((row, index) => ({
+  return (response.data.values ?? []).flatMap((row, index) => {
+    if (isDeleted(row[10])) return [];
+    const task = {
       row: index + 3,
       date: normalizeDate(row[0]),
       day: text(row[1]),
@@ -55,8 +88,9 @@ export async function listTasks(): Promise<Task[]> {
       department: text(row[7]),
       note: text(row[8]),
       completedDate: normalizeDate(row[9]),
-    }))
-    .filter((task) => task.name || task.date);
+    };
+    return task.name || task.date ? [task] : [];
+  });
 }
 
 function taskValues(input: TaskInput) {
@@ -86,44 +120,68 @@ export async function createTask(input: TaskInput) {
   });
 }
 
-export async function updateTask(row: number, input: TaskInput) {
+export async function updateTask(row: number, input: TaskInput, expected: TaskIdentity) {
   if (row < 3) throw new Error("수정할 수 없는 행입니다.");
-  const sheets = getClient();
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: sheetId(),
-    range: `'${TASK_SHEET}'!A${row}:K${row}`,
-    valueInputOption: "USER_ENTERED",
-    requestBody: { values: [taskValues(input)] },
-  });
-}
-
-export async function deleteTask(row: number, reason = "웹앱에서 삭제") {
-  if (row < 3) throw new Error("삭제할 수 없는 행입니다.");
   const sheets = getClient();
   const current = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetId(),
-    range: `'${TASK_SHEET}'!A${row}:J${row}`,
+    range: `'${TASK_SHEET}'!A${row}:K${row}`,
     valueRenderOption: "FORMATTED_VALUE",
   });
-  const values = current.data.values?.[0];
-  if (!values?.length) throw new Error("삭제할 업무를 찾지 못했습니다. 새로고침 후 다시 시도해 주세요.");
+  assertCurrentTask(current.data.values?.[0] ?? [], expected);
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: sheetId(),
+    range: `'${TASK_SHEET}'!A${row}:J${row}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: [taskValues(input).slice(0, 10)] },
+  });
+}
+
+export async function deleteTask(row: number, expected: TaskIdentity, reason = "웹앱에서 삭제") {
+  if (row < 3) throw new Error("삭제할 수 없는 행입니다.");
+  const sheets = getClient();
+  const [current, sheetIds] = await Promise.all([
+    sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId(),
+      range: `'${TASK_SHEET}'!A${row}:K${row}`,
+      valueRenderOption: "FORMATTED_VALUE",
+    }),
+    taskSheetIds(sheets),
+  ]);
+  const values = current.data.values?.[0] ?? [];
+  assertCurrentTask(values, expected);
   const archivedValues = Array.from({ length: 10 }, (_, index) => values[index] ?? "");
 
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: sheetId(),
-    range: `'${DELETED_SHEET}'!A:L`,
-    valueInputOption: "USER_ENTERED",
-    insertDataOption: "INSERT_ROWS",
-    requestBody: { values: [[...archivedValues, new Date().toISOString(), reason]] },
-  });
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: sheetId(),
     requestBody: {
-      requests: [{
-        deleteDimension: {
-          range: { sheetId: TASK_SHEET_ID, dimension: "ROWS", startIndex: row - 1, endIndex: row },
+      requests: [
+        {
+          appendCells: {
+            sheetId: sheetIds.deleted,
+            fields: "userEnteredValue",
+            rows: [{
+              values: [...archivedValues, new Date().toISOString(), reason].map((value) => ({
+                userEnteredValue: { stringValue: text(value) },
+              })),
+            }],
+          },
         },
-      }],
+        {
+          updateCells: {
+            range: {
+              sheetId: sheetIds.task,
+              startRowIndex: row - 1,
+              endRowIndex: row,
+              startColumnIndex: 10,
+              endColumnIndex: 11,
+            },
+            fields: "userEnteredValue",
+            rows: [{ values: [{ userEnteredValue: { boolValue: true } }] }],
+          },
+        },
+      ],
     },
   });
 }

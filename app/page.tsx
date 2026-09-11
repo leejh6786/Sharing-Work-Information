@@ -45,7 +45,11 @@ async function api<T>(url: string, options?: RequestInit): Promise<T> {
 const emptyTask = (): TaskInput => ({ date: todayKst(), time: "", type: "행사", name: "", target: "", place: "", department: "", note: "", completedDate: "" });
 const emptyNotice = (): NoticeInput => ({ date: todayKst(), content: "", department: "", target: "", note: "" });
 
-function TaskTable({ tasks, onEdit, onDelete }: { tasks: Task[]; onEdit: (task: Task) => void; onDelete: (task: Task) => void }) {
+function taskIdentity(task: Task) {
+  return { date: task.date, name: task.name, department: task.department };
+}
+
+function TaskTable({ tasks, onEdit, onDelete, busy }: { tasks: Task[]; onEdit: (task: Task) => void; onDelete: (task: Task) => void; busy: boolean }) {
   if (!tasks.length) return <p className="empty">표시할 일정이 없습니다.</p>;
   return (
     <div className="table-wrap">
@@ -56,7 +60,7 @@ function TaskTable({ tasks, onEdit, onDelete }: { tasks: Task[]; onEdit: (task: 
             <td>{displayDate(task.date)}</td><td>{task.day}</td><td>{task.time}</td><td><span className="tag">{task.type}</span></td>
             <td className="wide"><strong>{task.name}</strong>{task.note && <small>{task.note}</small>}</td><td>{task.target}</td><td>{task.place}</td><td>{task.department}</td>
             <td>{task.completedDate ? <span className="done">완료</span> : <span className="pending">예정</span>}</td>
-            <td><div className="row-actions"><button className="small" onClick={() => onEdit(task)}>수정</button><button className="small danger" onClick={() => onDelete(task)}>삭제</button></div></td>
+            <td><div className="row-actions"><button className="small" disabled={busy} onClick={() => onEdit(task)}>수정</button><button className="small danger" disabled={busy} onClick={() => onDelete(task)}>삭제</button></div></td>
           </tr>
         ))}</tbody>
       </table>
@@ -70,7 +74,7 @@ export default function Home() {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [taskForm, setTaskForm] = useState<TaskInput>(emptyTask);
   const [noticeForm, setNoticeForm] = useState<NoticeInput>(emptyNotice);
-  const [editingTask, setEditingTask] = useState<number | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingNotice, setEditingNotice] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -121,7 +125,10 @@ export default function Home() {
   async function saveTask(event: FormEvent) {
     event.preventDefault(); setBusy(true); setMessage("");
     try {
-      await api(editingTask ? `/api/tasks/${editingTask}` : "/api/tasks", { method: editingTask ? "PATCH" : "POST", body: JSON.stringify(taskForm) });
+      await api(editingTask ? `/api/tasks/${editingTask.row}` : "/api/tasks", {
+        method: editingTask ? "PATCH" : "POST",
+        body: JSON.stringify(editingTask ? { task: taskForm, expected: taskIdentity(editingTask) } : taskForm),
+      });
       setMessage(editingTask ? "업무를 수정했습니다." : "업무를 등록했습니다.");
       setTaskForm(emptyTask()); setEditingTask(null); await load(); setTab("list");
     } catch (error) { setMessage(error instanceof Error ? error.message : "저장하지 못했습니다."); }
@@ -130,13 +137,19 @@ export default function Home() {
 
   function editTask(task: Task) {
     setTaskForm({ date: task.date, time: task.time, type: task.type, name: task.name, target: task.target, place: task.place, department: task.department, note: task.note, completedDate: task.completedDate });
-    setEditingTask(task.row); setTab("entry"); window.scrollTo({ top: 0, behavior: "smooth" });
+    setEditingTask(task); setTab("entry"); window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function removeTask(task: Task) {
     if (!window.confirm(`‘${task.name}’ 업무를 삭제 목록으로 이동할까요?`)) return;
     setBusy(true);
-    try { await api(`/api/tasks/${task.row}`, { method: "DELETE", body: JSON.stringify({ reason: "웹앱에서 삭제" }) }); await load(); }
+    try {
+      await api(`/api/tasks/${task.row}`, {
+        method: "DELETE",
+        body: JSON.stringify({ reason: "웹앱에서 삭제", expected: taskIdentity(task) }),
+      });
+      await load();
+    }
     catch (error) { setMessage(error instanceof Error ? error.message : "삭제하지 못했습니다."); }
     finally { setBusy(false); }
   }
@@ -176,7 +189,7 @@ export default function Home() {
 
         {!loading && tab === "dashboard" && <div className="stack">
           <section className="summary-grid">{[["오늘", buckets.today.length], ["이번주", buckets.week.length], ["다음주", buckets.nextWeek.length], ["이번달", buckets.month.length], ["다음달", buckets.nextMonth.length]].map(([label, count]) => <article className="summary-card" key={String(label)}><span>{label}</span><strong>{count}</strong><em>건</em></article>)}</section>
-          {sections.map(([title, items]) => <section className="panel" key={title}><div className="section-title"><h2>{title}</h2><span>{items.length}건</span></div><TaskTable tasks={items} onEdit={editTask} onDelete={removeTask} /></section>)}
+          {sections.map(([title, items]) => <section className="panel" key={title}><div className="section-title"><h2>{title}</h2><span>{items.length}건</span></div><TaskTable tasks={items} onEdit={editTask} onDelete={removeTask} busy={busy} /></section>)}
         </div>}
 
         {!loading && tab === "entry" && <section className="panel form-panel"><div className="section-title"><div><p className="eyebrow">TASK FORM</p><h2>{editingTask ? "업무 수정" : "새 업무 등록"}</h2></div>{editingTask && <button onClick={() => { setEditingTask(null); setTaskForm(emptyTask()); }}>수정 취소</button>}</div>
@@ -194,7 +207,7 @@ export default function Home() {
           </form>
         </section>}
 
-        {!loading && tab === "list" && <section className="panel"><div className="section-title"><div><p className="eyebrow">ALL TASKS</p><h2>전체 업무목록</h2></div><span>{filteredTasks.length}건</span></div><div className="filters"><input aria-label="업무 검색" placeholder="업무명, 부서, 대상 검색" value={search} onChange={(e) => setSearch(e.target.value)} /><select aria-label="업무유형 필터" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}><option value="">전체 유형</option>{TASK_TYPES.map((type) => <option key={type}>{type}</option>)}</select><button onClick={load}>새로고침</button></div><TaskTable tasks={filteredTasks} onEdit={editTask} onDelete={removeTask} /></section>}
+        {!loading && tab === "list" && <section className="panel"><div className="section-title"><div><p className="eyebrow">ALL TASKS</p><h2>전체 업무목록</h2></div><span>{filteredTasks.length}건</span></div><div className="filters"><input aria-label="업무 검색" placeholder="업무명, 부서, 대상 검색" value={search} onChange={(e) => setSearch(e.target.value)} /><select aria-label="업무유형 필터" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}><option value="">전체 유형</option>{TASK_TYPES.map((type) => <option key={type}>{type}</option>)}</select><button onClick={load}>새로고침</button></div><TaskTable tasks={filteredTasks} onEdit={editTask} onDelete={removeTask} busy={busy} /></section>}
 
         {!loading && tab === "notice" && <div className="notice-layout"><section className="panel form-panel"><div className="section-title"><div><p className="eyebrow">NOTICE FORM</p><h2>{editingNotice ? "안내사항 수정" : "안내사항 등록"}</h2></div></div><form onSubmit={saveNotice} className="notice-form"><label>날짜<input required type="date" value={noticeForm.date} onChange={(e) => setNoticeForm({ ...noticeForm, date: e.target.value })} /></label><label>안내 내용<textarea required value={noticeForm.content} onChange={(e) => setNoticeForm({ ...noticeForm, content: e.target.value })} /></label><label>안내 부서<input value={noticeForm.department} onChange={(e) => setNoticeForm({ ...noticeForm, department: e.target.value })} /></label><label>대상<input value={noticeForm.target} onChange={(e) => setNoticeForm({ ...noticeForm, target: e.target.value })} /></label><label>비고<textarea value={noticeForm.note} onChange={(e) => setNoticeForm({ ...noticeForm, note: e.target.value })} /></label><div className="form-actions"><button className="primary" disabled={busy}>저장</button>{editingNotice && <button type="button" onClick={() => { setEditingNotice(null); setNoticeForm(emptyNotice()); }}>취소</button>}</div></form></section>
           <section className="panel"><div className="section-title"><h2>안내사항</h2><span>{notices.length}건</span></div><div className="notice-list">{notices.length ? notices.map((notice) => <article className="notice-card" key={notice.row}><div><time>{displayDate(notice.date)} ({notice.day})</time><h3>{notice.content}</h3><p>{[notice.department, notice.target].filter(Boolean).join(" · ")}</p>{notice.note && <small>{notice.note}</small>}</div><div className="row-actions"><button className="small" onClick={() => { setEditingNotice(notice.row); setNoticeForm({ date: notice.date, content: notice.content, department: notice.department, target: notice.target, note: notice.note }); window.scrollTo({ top: 0, behavior: "smooth" }); }}>수정</button><button className="small danger" onClick={() => removeNotice(notice)}>삭제</button></div></article>) : <p className="empty">등록된 안내사항이 없습니다.</p>}</div></section>
