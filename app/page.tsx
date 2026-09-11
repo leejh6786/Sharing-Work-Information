@@ -65,12 +65,11 @@ function TaskTable({ tasks, onEdit, onDelete, busy }: { tasks: Task[]; onEdit: (
   return (
     <div className="table-wrap">
       <table>
-        <thead><tr><th>날짜</th><th>요일</th><th>시간</th><th>유형</th><th className="wide">업무명</th><th>대상</th><th>장소</th><th>부서</th><th>상태</th><th>관리</th></tr></thead>
+        <thead><tr><th>날짜</th><th>요일</th><th>시간</th><th>유형</th><th className="wide">업무명</th><th>대상</th><th>장소</th><th>부서</th><th>관리</th></tr></thead>
         <tbody>{tasks.map((task) => (
           <tr key={task.row} className={task.completedDate ? "completed" : ""}>
             <td>{displayDate(task.date)}</td><td>{task.day}</td><td>{task.time}</td><td><span className="tag">{task.type}</span></td>
             <td className="wide"><strong>{task.name}</strong>{task.note && <small>{task.note}</small>}</td><td>{task.target}</td><td>{task.place}</td><td>{task.department}</td>
-            <td>{task.completedDate ? <span className="done">완료</span> : <span className="pending">예정</span>}</td>
             <td><div className="row-actions"><button className="small" disabled={busy} onClick={() => onEdit(task)}>수정</button><button className="small danger" disabled={busy} onClick={() => onDelete(task)}>삭제</button></div></td>
           </tr>
         ))}</tbody>
